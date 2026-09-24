@@ -1,0 +1,20 @@
+{
+  "name": "social-ad-monitor",
+  "private": true,
+  "type": "module",
+  "description": "B站健康食品类软广（未标明「广告」的商业推广）自动监测：本地网页，产出带证据链的线索供人工复核",
+  "scripts": {
+    "app": "node --disable-warning=ExperimentalWarning app/server.mjs",
+    "auto": "node --disable-warning=ExperimentalWarning app/cli.mjs run",
+    "auto-status": "node --disable-warning=ExperimentalWarning app/cli.mjs status",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.mjs",
+    "check-app": "node --disable-warning=ExperimentalWarning app/check.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "playwright-core": "1.61.1"
+  },
+  "license": "MIT"
+}

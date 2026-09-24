@@ -1,0 +1,30 @@
+# 依赖
+node_modules/
+
+# 本机配置（从 config/app.example.json 复制一份再改）
+config/app.json
+
+# 监测数据：数据库、音频、截帧、证据、导出的表格（含第三方作品和个人信息，不要提交）
+# 不带结尾斜杠：目录、文件、链接都挡
+/workspace
+/data
+/site/data
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.m4a
+*.mp4
+
+# 转写环境和模型（按 README 自己下载）
+/asr
+.venv/
+__pycache__/
+*.pyc
+
+# 导出工具留的标记
+.oss-export
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.log

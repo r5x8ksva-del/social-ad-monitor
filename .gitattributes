@@ -1,0 +1,4 @@
+# 仓库里统一存 LF；Windows 的批处理文件检出时用 CRLF
+* text=auto
+*.cmd text eol=crlf
+*.onnx binary

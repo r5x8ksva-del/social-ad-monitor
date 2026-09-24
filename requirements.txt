@@ -1,0 +1,7 @@
+# 转写环境（app/asr_worker.py、app/asr_core.py 用）。建议装在项目里的 asr/.venv：
+#   python -m venv asr/.venv
+#   Windows：asr\.venv\Scripts\pip install -r requirements.txt
+#   macOS / Linux：asr/.venv/bin/pip install -r requirements.txt
+# 实测版本：Python 3.12、sherpa-onnx 1.13.8、numpy 2.5.3
+sherpa-onnx==1.13.8
+numpy>=1.26

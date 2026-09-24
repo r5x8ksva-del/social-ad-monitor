@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自动监测</title>
+<meta name="description" content="B站 软广监测：自动发现、采集、转写、判定，线索在网页里复核">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='12' width='28' height='9' rx='2' fill='%23dce1dd'/%3E%3Crect x='12' y='11' width='9' height='11' rx='2' fill='%23ffe24a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/site/assets/site.css">
+<link rel="stylesheet" href="/ui/app.css">
+<script src="/site/assets/common.js"></script>
+<script src="/site/assets/charts.js"></script>
+</head>
+<body>
+<a class="skip" href="#view">跳到正文</a>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#/"><b>软广监测</b><span>自动监测 · B站</span></a>
+    <nav class="nav" aria-label="页面">
+      <a href="#/" data-nav="overview">概览</a>
+      <a href="#/leads" data-nav="leads">线索<span class="nav-count" id="nav-pending" hidden></span></a>
+      <a href="#/runs" data-nav="runs">运行记录</a>
+      <a href="#/settings" data-nav="settings">设置</a>
+      <a href="/site/index.html" target="_blank" rel="noopener" class="nav-ext">研究报告</a>
+    </nav>
+    <button class="theme-btn" type="button" aria-label="切换深浅色"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Zm0 1.5v10a5 5 0 0 1 0-10Z"/></svg></button>
+  </div>
+</header>
+<main class="wrap" id="view" tabindex="-1"></main>
+<div class="drawer-back" id="drawer-back"></div>
+<aside class="drawer" id="drawer" aria-modal="true" role="dialog" aria-labelledby="d-title" hidden>
+  <div class="drawer-in" id="drawer-in"></div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/ui/app.js"></script>
+</body>
+</html>

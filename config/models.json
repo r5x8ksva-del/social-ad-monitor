@@ -1,0 +1,8 @@
+{
+  "_说明": "用到大模型的地方都从这里读模型名：研究版三处（label 判定、vision 读画面、second 第二标注），自动监测网页另有 location（从内容里认城市）。接口是火山方舟的 OpenAI 兼容口，密钥放环境变量 ARK_API_KEY。换模型只改这里；打出来的结果文件会记下当时用的模型名。",
+  "endpoint": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+  "label": "doubao-seed-2-1-pro-260628",
+  "vision": "doubao-seed-2-0-mini-260428",
+  "second": "deepseek-v4-pro-ga-260813",
+  "location": "doubao-seed-2-0-mini-260428"
+}

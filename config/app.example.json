@@ -1,0 +1,19 @@
+{
+  "_说明": "本机配置模板。要改就复制一份改名为 config/app.json 再改（app.json 不进仓库）；没有 app.json 时用这里的默认值。相对路径按项目根目录算；不带斜杠的（ffmpeg、python3）按 PATH 找。环境变量优先：SAM_WORKSPACE、SAM_PORT、SAM_PYTHON、ASR_HOME、FFMPEG、SAM_BROWSER_CHANNEL。",
+  "workspace": "workspace",
+  "port": 8770,
+  "asrHome": "asr",
+  "python": "",
+  "ffmpeg": "ffmpeg",
+  "browserChannel": "msedge",
+  "asrShards": 3,
+  "asrThreads": 4,
+  "_字段": {
+    "workspace": "监测数据放在哪（数据库、音频、截帧、导出的表格）",
+    "asrHome": "放转写模型的目录，里面要有 models/sense-voice/model.int8.onnx、models/sense-voice/tokens.txt、models/silero_vad.onnx",
+    "python": "装了 sherpa-onnx 的 Python；留空就用 asr/.venv 里的（Windows：asr/.venv/Scripts/python.exe，macOS / Linux：asr/.venv/bin/python）",
+    "ffmpeg": "ffmpeg 可执行文件；在 PATH 里就写 ffmpeg，不在就写完整路径",
+    "browserChannel": "msedge = 本机 Microsoft Edge；也可以写 chrome（本机 Google Chrome）",
+    "asrShards / asrThreads": "转写开几个进程、每个进程几个线程（两者相乘别超过 CPU 核数太多）"
+  }
+}
