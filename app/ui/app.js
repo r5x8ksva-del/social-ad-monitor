@@ -3,6 +3,8 @@
 (function () {
   'use strict';
   const { h, int, mmss, toSec, lightbox, withTip, commercialBadge, disclosureBadge, gradeBadge, biliUrl } = window.SAM;
+  // 研究版的 disclosureBadge 只认三档；自动监测多一档「声明含营销信息」（B站 创作者声明，2026-05 起），和「只提到赞助合作」一样仍算未标明广告
+  const discBadge = (d, isPromo) => (isPromo && d === '声明含营销信息' ? h('span', { class: 'badge b-crit', text: '只声明含营销信息' }) : disclosureBadge(d, isPromo));
   const C = window.CHARTS;
   const $ = (id) => document.getElementById(id);
   const view = $('view');
@@ -396,7 +398,7 @@
         h('td', { class: 'n', text: compact(r.play) }),
         h('td', null, commercialBadge(r.commercial)),
         h('td', { text: r.form === '无' ? '—' : r.form }),
-        h('td', null, disclosureBadge(r.disclosure, r.promo) || '—'),
+        h('td', null, discBadge(r.disclosure, r.promo) || '—'),
         h('td', { class: 'n', text: String(r.flags.length) }),
         h('td', null, attBadges(r.attention)),
         h('td', null, pubCell(r.pub)),
@@ -470,7 +472,7 @@
     // 结论
     if (lead) {
       parts.push(h('div', { class: 'badges', style: 'margin-top:14px' }, gradeBadge(lead.grade), commercialBadge(lead.commercial),
-        lead.form && lead.form !== '无' ? h('span', { class: 'badge b-soft', text: lead.form }) : null, disclosureBadge(lead.disclosure, promo), leadBadge(lead.status)));
+        lead.form && lead.form !== '无' ? h('span', { class: 'badge b-soft', text: lead.form }) : null, discBadge(lead.disclosure, promo), leadBadge(lead.status)));
     }
     parts.push(reviewCard(d));
     if (lead?.attention?.length) {
@@ -481,7 +483,7 @@
       ['链接', ext(biliUrl(v.bvid), biliUrl(v.bvid))],
       d.screening ? ['初筛', `推广分 ${d.screening.score ?? '—'}${d.screening.reasons?.length ? `：${d.screening.reasons.slice(0, 4).join('；')}` : ''}`] : null,
       ['判定', d.label ? `${d.label.model} · ${dt(d.label.labeledAt)}` : '还没判定'],
-      ['披露依据', lead ? `文字与口播：${d.label?.disclosure ?? '—'}${d.frames?.ok ? `；画面：${d.hits?.ad?.length ? `读到 ${d.hits.ad.length} 处广告类字样（待看图确认）` : '抽查的画面没读到广告字样'}` : '；画面：没取帧'}` : '—'],
+      ['披露依据', lead ? `${d.label?.disclosure === '声明含营销信息' ? `创作者声明「${d.page?.argue || '含营销信息'}」，文字与口播没写「广告」` : `文字与口播：${d.label?.disclosure ?? '—'}`}${d.frames?.ok ? `；画面：${d.hits?.ad?.length ? `读到 ${d.hits.ad.length} 处广告类字样（待看图确认）` : '抽查的画面没读到广告字样'}` : '；画面：没取帧'}` : '—'],
     ])));
 
     parts.push(regionSection(d));

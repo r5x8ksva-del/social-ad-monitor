@@ -11,13 +11,22 @@ const UNDISCLOSED = new Set(['未标明广告', '未标明广告_挂链']);
 // 大模型输出要有能用的 commercial，否则按解析失败处理（重问一次）
 export const validLabel = (out) => !!out && typeof out === 'object' && COMMERCIAL.includes(out.commercial);
 
-// 披露程度、是否挂链、代码判的问题（未标明广告、声称无广告、缺不能代替药物）和线索等级。和 m2-label.mjs 的 grade 相同。
+// 创作者声明：B站 按网信办 2026-05 的要求在标题区显示（页面数据 argue_info.argue_msg），如「内容含营销信息」「个人观点，仅供参考」
+export const declarationOf = (page) => String(page?.video?.argue_info?.argue_msg || page?.rawVideoData?.argue_info?.argue_msg || '');
+const MARKETING_DECL_RX = /营销信息/;
+
+// 披露程度、是否挂链、代码判的问题（未标明广告、声称无广告、缺不能代替药物）和线索等级。和 m2-label.mjs 的 grade 相同，
+// 只多认一种研究期还没有的披露：创作者声明「内容含营销信息」。它不等于标明「广告」（办法第九条），所以仍算未标明，但原话如实写。
 export function gradeLabel(out, x) {
   const commercial = out.commercial === '确定' || out.commercial === '疑似';
-  const level = disclosureLevel([x.v.title, x.desc, x.c?.top_text, out.disclosure?.quote]);
+  const decl = declarationOf(x.page);
+  const textLevel = disclosureLevel([x.v.title, x.desc, x.c?.top_text, out.disclosure?.quote]);
+  const level = textLevel !== '明示广告' && MARKETING_DECL_RX.test(decl) ? '声明含营销信息' : textLevel;
   const hasLink = x.pinnedCommerce || /(b23\.tv\/mall|taobao|tmall|jd\.com|小程序|淘口令)/i.test(x.desc);
   const flags = [];
-  if (commercial && level !== '明示广告') flags.push({ type: hasLink ? '未标明广告_挂链' : '未标明广告', quote: level === '提到赞助合作' ? '只提到赞助/合作，没写「广告」' : '标题、简介、置顶评论、口播都没有标明' });
+  const unmarked = level === '声明含营销信息' ? `只有创作者声明「${decl}」${textLevel === '提到赞助合作' ? '，另外提到赞助/合作' : ''}，没写「广告」`
+    : level === '提到赞助合作' ? '只提到赞助/合作，没写「广告」' : '标题、简介、置顶评论、口播都没有标明';
+  if (commercial && level !== '明示广告') flags.push({ type: hasLink ? '未标明广告_挂链' : '未标明广告', quote: unmarked });
   if (out.claims_no_ad && out.claims_no_ad !== '无' && out.commercial === '确定') flags.push({ type: '声称无广告', quote: out.claims_no_ad });
   for (const r of out.risks ?? []) if (LAW[r.type]) flags.push({ type: r.type, quote: r.quote ?? '', time: r.time ?? '' });
   const healthFood = (out.segments ?? []).some((s) => s.product_type === '保健食品');
@@ -100,6 +109,7 @@ export function wantedFragments({ segments = [], form, dur, fragDur, count, cap 
 // 自动流程不替人下画面结论：画面上读到「广告」「不能代替药物」「保健食品」只加提醒，等人看图后在复核里确认。
 export const ATTENTION = {
   两模型分歧: '两个模型对「有没有推广」判得不一样，先看这条',
+  声明营销却判无推广: '创作者自己声明了「内容含营销信息」，模型却判无推广，可能漏判，先看这条',
   原话核对不上: '模型引用的原话在转写、简介、置顶里找不到（可能改写了错字，或者编的）',
   画面疑似写了广告: '画面上读到「广告」「赞助」之类的字，看图确认后在复核里勾「画面上已写明广告」',
   画面有不能代替药物字样: '画面上读到「不能代替药物」类字样，可能是包装印字，看图确认',
@@ -119,6 +129,7 @@ export function buildLead({ label, second = null, hits = null, review = null }) 
   const attention = [];
   const secondPromo = second?.output && COMMERCIAL.includes(second.output.commercial) ? promo(second.output) : null;
   if (!rv && secondPromo !== null && secondPromo !== promo(out)) attention.push('两模型分歧');
+  if (!rv && !isPromo && label.disclosure_level === '声明含营销信息') attention.push('声明营销却判无推广');
   if (isPromo && !rv && (label.quotes ?? []).some((q) => q.status === '找不到')) attention.push('原话核对不上');
   if (rv?.frameDisclosed) {
     disclosure = '明示广告';

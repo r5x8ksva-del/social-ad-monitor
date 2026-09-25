@@ -1,7 +1,7 @@
 // 判定纯函数：分级、原话核对、画面命中、取帧清单、线索合并
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gradeLabel, checkQuote, quoteChecks, norm, frameHits, wantedFragments, buildLead, validLabel } from '../app/lib/judge.mjs';
+import { gradeLabel, checkQuote, quoteChecks, norm, frameHits, wantedFragments, buildLead, validLabel, ATTENTION } from '../app/lib/judge.mjs';
 import { parseSidx } from '../app/lib/media.mjs';
 
 const x = (over = {}) => ({ v: { title: '鱼油怎么选' }, desc: '', c: { top_text: '' }, lines: ['[00:10] 这个鱼油真的好'], pinnedCommerce: false, ...over });
@@ -37,6 +37,29 @@ test('保健食品没说「不能代替药物」要标出来；说了就不标',
 test('模型自己选的风险类型只收法条表里有的', () => {
   const g = gradeLabel(out({ risks: [{ type: '极限用语', quote: '最好的鱼油', time: '00:12' }, { type: '瞎编的类型', quote: 'x' }] }), x());
   assert.deepEqual(g.flags.map((f) => f.type), ['未标明广告', '极限用语']);
+});
+
+// B站 按网信办 2026-05 的要求上线的创作者声明，页面数据里是 video.argue_info.argue_msg（字段形状照研究数据里的真实页面，内容是虚构的）
+const declared = (msg) => ({ infoText: `鱼油怎么选 1000 0 2026-09-18 12:00:00 ${msg}`, video: { argue_info: { argue_msg: msg, argue_type: 0, argue_link: '' } } });
+
+test('创作者声明「内容含营销信息」：披露记为声明含营销信息，未标明广告的原话如实写，不再说「都没有标明」', () => {
+  const g = gradeLabel(out(), x({ pinnedCommerce: true, page: declared('内容含营销信息') }));
+  assert.equal(g.disclosureLevel, '声明含营销信息');
+  assert.deepEqual(g.flags.map((f) => f.type), ['未标明广告_挂链']); // 法律上仍要显著标明「广告」（办法第九条），声明不等于标明
+  assert.equal(g.flags[0].quote, '只有创作者声明「内容含营销信息」，没写「广告」');
+  assert.equal(g.grade, 'A');
+});
+
+test('创作者声明 + 口播提到赞助：两样都写进原话；写明「广告」仍是明示；「个人观点」类声明不算披露', () => {
+  const both = gradeLabel(out({ disclosure: { quote: '感谢品牌方赞助', time: '00:05' } }), x({ page: declared('内容含营销信息') }));
+  assert.equal(both.disclosureLevel, '声明含营销信息');
+  assert.equal(both.flags[0].quote, '只有创作者声明「内容含营销信息」，另外提到赞助/合作，没写「广告」');
+  const ad = gradeLabel(out(), x({ desc: '本期视频含广告', page: declared('内容含营销信息') }));
+  assert.equal(ad.disclosureLevel, '明示广告');
+  assert.deepEqual(ad.flags, []);
+  const opinion = gradeLabel(out(), x({ page: declared('个人观点，仅供参考') }));
+  assert.equal(opinion.disclosureLevel, '无');
+  assert.equal(opinion.flags[0].quote, '标题、简介、置顶评论、口播都没有标明');
 });
 
 test('原话核对：完整、部分、找不到', () => {
@@ -101,6 +124,18 @@ test('线索：模型判无推广但第二个模型判推广，也要提醒（�
   assert.equal(l.status, '无推广');
   assert.equal(l.promo, false);
   assert.deepEqual(l.attention, ['两模型分歧']);
+});
+
+test('线索：创作者声明含营销信息、模型却判无推广，要提醒人看（可能漏了）；复核过就不再提醒', () => {
+  const l = buildLead({ label: label({ output: out({ commercial: '无' }), flags: [], disclosure_level: '声明含营销信息' }) });
+  assert.equal(l.status, '无推广');
+  assert.deepEqual(l.attention, ['声明营销却判无推广']);
+  assert.match(ATTENTION['声明营销却判无推广'], /营销信息/);
+  const reviewed = buildLead({ label: label({ output: out({ commercial: '无' }), flags: [], disclosure_level: '声明含营销信息' }), review: { verdict: 'reject' } });
+  assert.deepEqual(reviewed.attention, []);
+  const promoLead = buildLead({ label: label({ disclosure_level: '声明含营销信息' }) });
+  assert.ok(!promoLead.attention.includes('声明营销却判无推广'));
+  assert.equal(promoLead.disclosure, '声明含营销信息');
 });
 
 test('线索：画面读到广告字样只提醒、不自动改结论；复核勾了「画面已写明」才去掉未标明广告', () => {
