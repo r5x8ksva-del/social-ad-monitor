@@ -13,18 +13,45 @@ test('默认设置来自 config/health.json，并且本身能通过校验', () =
   assert.deepEqual(validateSettings(d, d).errors, []);
 });
 
-test('设置校验：列表拆分去重、数字范围、品类词不能为空、定时格式', () => {
+test('设置校验：列表拆分去重、数字范围、关键词不能为空、定时格式', () => {
   const base = defaultSettings();
   const ok = validateSettings({ keywords: '鱼油，益生菌\n鱼油\n', maxDeepPerRun: '80', schedule: { enabled: true, time: '07:30', frequency: 'weekly', weekday: 3 } }, base);
   assert.deepEqual(ok.errors, []);
   assert.deepEqual(ok.settings.keywords, ['鱼油', '益生菌']);
   assert.equal(ok.settings.maxDeepPerRun, 80);
   assert.deepEqual(ok.settings.schedule, { enabled: true, frequency: 'weekly', time: '07:30', weekday: 3 });
-  const bad = validateSettings({ relevanceTerms: [], maxDeepPerRun: 0, schedule: { time: '25:00' }, firstRunDays: 20 }, base);
+  const bad = validateSettings({ keywords: [], maxDeepPerRun: 0, schedule: { time: '25:00' }, firstRunDays: 20 }, base);
   assert.equal(bad.errors.length, 4);
-  assert.deepEqual(bad.settings.relevanceTerms, base.relevanceTerms);  // 不合格的字段保留原值
+  assert.deepEqual(bad.settings.keywords, base.keywords);  // 不合格的字段保留原值
   assert.equal(validateSettings({ firstRunDays: 10, maxLookbackDays: 5 }, base).errors.length, 1);
   assert.equal(validateSettings([], base).errors.length, 1);
+});
+
+test('选填项：数字和品类名称留空按默认值（不是 0、不是原值），品类词留空存空表', () => {
+  const d = defaultSettings();
+  const base = { ...d, maxDeepPerRun: 1, minAgeHours: 10, minDurationS: 90, maxFramesPerVideo: 8, category: '化妆品' };
+  const r = validateSettings({ maxDeepPerRun: '', minAgeHours: '', minDurationS: null, maxFramesPerVideo: '  ', category: ' ', relevanceTerms: [''] }, base);
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.settings.maxDeepPerRun, d.maxDeepPerRun);
+  assert.equal(r.settings.minAgeHours, d.minAgeHours);   // 以前留空会被当成 0 存下
+  assert.equal(r.settings.minDurationS, d.minDurationS);
+  assert.equal(r.settings.maxFramesPerVideo, d.maxFramesPerVideo);
+  assert.equal(r.settings.category, d.category);
+  assert.deepEqual(r.settings.relevanceTerms, []);
+  assert.equal(validateSettings({ minAgeHours: 0 }, base).settings.minAgeHours, 0);   // 填 0 就是 0
+  // 第一轮回溯天数留空、最长回溯又比默认值短：取最长回溯天数，不报错
+  const short = validateSettings({ firstRunDays: '', maxLookbackDays: 2 }, base);
+  assert.deepEqual(short.errors, []);
+  assert.equal(short.settings.firstRunDays, 2);
+});
+
+test('必填项：搜索关键词不能空；打开定时要填时间，关着时留空保留原来的时间', () => {
+  const base = defaultSettings();
+  assert.match(validateSettings({ keywords: '\n \n' }, base).errors.join('；'), /关键词至少要 1 个/);
+  assert.match(validateSettings({ schedule: { enabled: true, time: '' } }, base).errors.join('；'), /定时.*时间/);
+  const off = validateSettings({ schedule: { enabled: false, time: '' } }, { ...base, schedule: { ...base.schedule, time: '05:30' } });
+  assert.deepEqual(off.errors, []);
+  assert.equal(off.settings.schedule.time, '05:30');
 });
 
 test('设置读写：坏字段回落到默认值', () => {

@@ -131,12 +131,18 @@ test('复核：校验、确认、修改、撤销', async () => {
 });
 
 test('设置：不合格的整份不存，合格的存下', async () => {
-  const bad = await call('PUT', '/api/settings', { body: { relevanceTerms: [], maxDeepPerRun: 0 } });
+  const bad = await call('PUT', '/api/settings', { body: { keywords: [], maxDeepPerRun: 0 } });
   assert.equal(bad.status, 400);
-  assert.match(bad.json.error, /品类词/);
+  assert.match(bad.json.error, /关键词/);
   const good = await call('PUT', '/api/settings', { body: { maxDeepPerRun: 20, reviewer: '甲', schedule: { enabled: true, time: '04:30' } } });
   assert.equal(good.status, 200);
   assert.equal(good.json.settings.maxDeepPerRun, 20);
+  // 选填的数字留空：按默认值存；品类词留空也能存
+  const blank = await call('PUT', '/api/settings', { body: { maxDeepPerRun: '', minAgeHours: '', relevanceTerms: [''] } });
+  assert.equal(blank.status, 200);
+  assert.equal(blank.json.settings.maxDeepPerRun, blank.json.defaults.maxDeepPerRun);
+  assert.equal(blank.json.settings.minAgeHours, blank.json.defaults.minAgeHours);
+  assert.deepEqual(blank.json.settings.relevanceTerms, []);
   const s = await call('GET', '/api/status');
   assert.equal(s.json.schedule.enabled, true);
   assert.equal(s.json.schedule.due, false);   // 刚打开定时不会立刻跑

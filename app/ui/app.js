@@ -738,15 +738,16 @@
   async function settingsPage() {
     const d = await api('/api/settings');
     let s = d.settings;
-    const num = (key, label, hint, min, max) => { const i = h('input', { type: 'number', min: String(min), max: String(max), step: '1', value: String(s[key]), name: key, required: true }); return [key, i, h('label', { class: 'f' }, h('span', { text: label }), i, hint ? h('small', { text: hint }) : null)]; };
+    // 必填的只有搜索关键词（打开定时时还有时间）；数字留空按默认值，品类词留空用搜索关键词，其余留空就是不用。每项的灰字写明留空怎么算
+    const num = (key, label, hint, min, max) => { const i = h('input', { type: 'number', min: String(min), max: String(max), step: '1', value: String(s[key]), name: key, placeholder: `默认 ${d.defaults[key]}` }); return [key, i, h('label', { class: 'f' }, h('span', { text: label }), i, h('small', { text: `${hint ? `${hint}。` : ''}留空按默认值 ${d.defaults[key]}` }))]; };
     const chk = (key, label, hint, get = () => s[key]) => { const i = h('input', { type: 'checkbox', name: key }); i.checked = !!get(); return [key, i, h('label', { class: 'check' }, i, h('span', null, label, hint ? h('small', { text: hint }) : null))]; };
-    const area = (key, label, hint) => { const i = h('textarea', { name: key, rows: '4' }); i.value = s[key].join('\n'); return [key, i, h('label', { class: 'f wide' }, h('span', { text: `${label}（一行一个，${s[key].length} 个）` }), i, hint ? h('small', { text: hint }) : null)]; };
-    const text = (key, label, hint) => { const i = h('input', { type: 'text', name: key, value: s[key] ?? '', maxlength: '30' }); return [key, i, h('label', { class: 'f' }, h('span', { text: label }), i, hint ? h('small', { text: hint }) : null)]; };
+    const area = (key, label, hint, must = false) => { const i = h('textarea', { name: key, rows: '4' }); i.value = s[key].join('\n'); return [key, i, h('label', { class: 'f wide' }, h('span', { text: `${label}（${must ? '必填，' : ''}一行一个，${s[key].length} 个）` }), i, hint ? h('small', { text: hint }) : null)]; };
+    const text = (key, label, hint, placeholder) => { const i = h('input', { type: 'text', name: key, value: s[key] ?? '', maxlength: '30', placeholder }); return [key, i, h('label', { class: 'f' }, h('span', { text: label }), i, hint ? h('small', { text: hint }) : null)]; };
 
     const schOn = chk('schedule.enabled', '到点自动运行', '网页服务开着时才会到点运行（电脑开机、不睡眠）。错过的时段，服务再打开时补跑一次。', () => s.schedule.enabled);
     const freq = h('select', { name: 'frequency' }, h('option', { value: 'daily', text: '每天' }), h('option', { value: 'weekly', text: '每周' }));
     freq.value = s.schedule.frequency;
-    const time = h('input', { type: 'time', value: s.schedule.time, name: 'time', required: true });
+    const time = h('input', { type: 'time', value: s.schedule.time, name: 'time' });
     const wday = h('select', { name: 'weekday' }, WEEK.map((w, i) => h('option', { value: String(i), text: w })));
     wday.value = String(s.schedule.weekday);
     const wdayLabel = h('label', { class: 'f' }, h('span', { text: '星期' }), wday);
@@ -762,15 +763,15 @@
       maxFramesPerVideo: num('maxFramesPerVideo', '每条视频最多取几帧', '读画面是大模型用量的大头，研究里平均每条 28 帧', 4, 200),
       secondModel: chk('secondModel', `第二个模型交叉检验（${d.models.second}）`, '另一家模型用同样的材料独立再判一遍，判得不一样的会标「两模型分歧」。关掉能省约一半判定用量。'),
       vision: chk('vision', `画面检查：取帧 + 读字（${d.models.vision}）`, '找画面上的「广告」「不能代替药物」等字样。关掉后「未标明广告」只看文字和口播。'),
-      category: text('category', '品类名称'),
-      keywords: area('keywords', '搜索关键词', '按发布时间翻 B站 公开搜索结果'),
-      relevanceTerms: area('relevanceTerms', '品类词', '标题、标签、简介里出现其中一个才算范围内'),
-      brands: area('brands', '品牌', '初筛打分用：提到品牌会加分'),
+      category: text('category', '品类名称', `留空按默认值「${d.defaults.category}」`, d.defaults.category),
+      keywords: area('keywords', '搜索关键词', '按发布时间翻 B站 公开搜索结果', true),
+      relevanceTerms: area('relevanceTerms', '品类词', '标题、标签、简介里出现其中一个才算范围内；留空就用搜索关键词判断'),
+      brands: area('brands', '品牌', '初筛打分用：提到品牌会加分；留空就不按品牌加分'),
       minDurationS: num('minDurationS', '最短时长（秒）', '更短的视频不看', 0, 3600),
       maxPagesPerKeyword: num('maxPagesPerKeyword', '每个关键词最多翻几页', '每页 20 条，上限 50 页', 1, 50),
       excludePets: chk('excludePets', '宠物产品不算', '按分区、标题、标签认宠物（和人工判断 116/116 一致）'),
       deleteNonPromoAudio: chk('deleteNonPromoAudio', '判为无推广的视频删掉音频', '两个模型都判无推广、也没人复核时才删；转写、截图和哈希都保留。'),
-      reviewer: text('reviewer', '默认复核人', '复核时自动填上（每个浏览器也会记住上次填的名字）'),
+      reviewer: text('reviewer', '默认复核人', '复核时自动填上（每个浏览器也会记住上次填的名字）；留空就复核时再填'),
       placeDetect: chk('placeDetect', `识别内容里写到的城市（${d.models.location ?? d.models.vision}）`, '每条推广视频多一次小模型调用：从标题、标签、简介、置顶、口播、画面里找商家门店、服务地区、「XX同城」。这是参考，不是发布地。'),
     };
     const bpText = (rows) => rows.map((r) => [r.aliases.join('/'), r.company, r.province, r.city, r.source].join(' ｜ ')).join('\n');
@@ -778,12 +779,12 @@
     bpArea.value = bpText(s.brandPlaces ?? []);
     const bpCount = h('span', { text: `品牌方所在地对照表（${(s.brandPlaces ?? []).length} 条）` });
     const bpLabel = h('label', { class: 'f wide' }, bpCount, bpArea,
-      h('small', { text: '一行一条：品牌别名（多个用 / 分隔）｜公司名称｜省｜市｜来源（企业信用信息公示系统截图、官网网址等）。推广品牌里包含某个别名就对上。只填核实过的；这是参考，不是发布地。' }));
+      h('small', { text: '一行一条：品牌别名（多个用 / 分隔）｜公司名称｜省｜市｜来源（企业信用信息公示系统截图、官网网址等）。推广品牌里包含某个别名就对上。只填核实过的；这是参考，不是发布地。留空就不对照。' }));
     const err = h('span', { class: 'err', role: 'alert' });
     const save = h('button', { class: 'btn', type: 'submit', text: '保存设置' });
     const reset = h('button', { class: 'btn ghost', type: 'button', text: '填回默认值' });
     const form = h('form', { class: 'form', novalidate: true },
-      h('fieldset', null, h('legend', { text: '定时运行' }), schOn[2], h('div', { class: 'fields', style: 'margin-top:12px' }, h('label', { class: 'f' }, h('span', { text: '频率' }), freq), h('label', { class: 'f' }, h('span', { text: '时间' }), time), wdayLabel)),
+      h('fieldset', null, h('legend', { text: '定时运行' }), schOn[2], h('div', { class: 'fields', style: 'margin-top:12px' }, h('label', { class: 'f' }, h('span', { text: '频率' }), freq), h('label', { class: 'f' }, h('span', { text: '时间' }), time, h('small', { text: '打开定时时必填' })), wdayLabel)),
       h('fieldset', null, h('legend', { text: '每轮做多少' }), h('div', { class: 'fields' }, f.firstRunDays[2], f.maxLookbackDays[2], f.minAgeHours[2], f.maxDeepPerRun[2])),
       h('fieldset', null, h('legend', { text: '模型与画面' }), h('p', { class: 'muted', style: 'margin:0 0 10px;font-size:13px', text: `判定用 ${d.models.label}（关思考、温度 0）。模型名在 config/models.json，密钥在环境变量 ARK_API_KEY。` }),
         h('div', { style: 'display:grid;gap:12px' }, f.secondModel[2], f.vision[2]), h('div', { class: 'fields', style: 'margin-top:12px' }, f.maxFramesPerVideo[2])),
@@ -812,9 +813,12 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       err.textContent = '';
+      // 数字框里填了不成数字的字，浏览器读出来是空串：要报出来，不能当成「留空」悄悄换成默认值
+      const badNum = Object.values(f).find(([, input]) => input.type === 'number' && input.validity.badInput);
+      if (badNum) { err.textContent = `「${badNum[2].querySelector('span').textContent}」要填整数，或者留空用默认值`; badNum[1].focus(); return; }
       const body = { schedule: { enabled: schOn[1].checked, frequency: freq.value, time: time.value, weekday: Number(wday.value) } };
       for (const [, [key, input]] of Object.entries(f)) {
-        body[key] = input.type === 'checkbox' ? input.checked : input.tagName === 'TEXTAREA' ? input.value.split('\n') : input.type === 'number' ? Number(input.value) : input.value;
+        body[key] = input.type === 'checkbox' ? input.checked : input.tagName === 'TEXTAREA' ? input.value.split('\n') : input.type === 'number' ? (input.value.trim() === '' ? '' : Number(input.value)) : input.value;
       }
       body.brandPlaces = bpArea.value; // 服务端按行解析「别名｜公司｜省｜市｜来源」
       save.disabled = true;
@@ -827,7 +831,7 @@
       } catch (ex) { err.textContent = ex.message; }
       save.disabled = false;
     });
-    view.replaceChildren(head('设置', '改完点页面底部的「保存设置」，下一轮开始生效（正在跑的这一轮不受影响）。'), form, h('div', { style: 'height:24px' }));
+    view.replaceChildren(head('设置', '改完点页面底部的「保存设置」，下一轮开始生效（正在跑的这一轮不受影响）。只有「搜索关键词」必填（打开定时还要填时间），其余都可以留空，留空怎么算写在每项下面的灰字里。'), form, h('div', { style: 'height:24px' }));
   }
 
   // ── 启动 ──

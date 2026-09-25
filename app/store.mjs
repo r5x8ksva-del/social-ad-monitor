@@ -167,19 +167,24 @@ const NUMS = {
   maxDeepPerRun: [1, 2000, '每轮最多深度分析'],
   maxFramesPerVideo: [4, 200, '每条视频最多取帧'],
 };
-// 品类词不能为空：空的正则会匹配所有视频
-const LISTS = { keywords: ['关键词', 1, 100], relevanceTerms: ['品类词', 1, 300], brands: ['品牌', 0, 500] };
+// 必填的只有搜索关键词（打开定时时还有时间）。品类词可以留空：划范围时改用搜索关键词（app/steps/scope.mjs），
+// 空表不能直接拼正则——空的正则会匹配所有视频
+const LISTS = { keywords: ['关键词', 1, 100], relevanceTerms: ['品类词', 0, 300], brands: ['品牌', 0, 500] };
 const BOOLS = ['excludePets', 'secondModel', 'vision', 'deleteNonPromoAudio', 'placeDetect'];
 const truthy = (v) => v === true || v === 'true' || v === 1 || v === '1';
+// 选填项留空（空串、空白、null）：数字和品类名称按默认值，不是 0 也不是原来的值
+const blank = (v) => v === null || String(v).trim() === '';
 
 // 校验并合并到 base 上：不合格的字段保留 base 的值，同时记下原因
 export function validateSettings(input, base = defaultSettings()) {
   const errors = [];
   const out = structuredClone(base);
   if (input == null || typeof input !== 'object' || Array.isArray(input)) return { settings: out, errors: ['设置格式不对'] };
+  let defs;
+  const dflt = (k) => (defs ??= defaultSettings())[k];
   if (input.category !== undefined) {
-    const c = String(input.category).trim();
-    if (!c || c.length > 30) errors.push('品类名称要 1–30 个字');
+    const c = blank(input.category) ? dflt('category') : String(input.category).trim();
+    if (c.length > 30) errors.push('品类名称不超过 30 个字');
     else out.category = c;
   }
   for (const [k, [label, min, max]] of Object.entries(LISTS)) {
@@ -191,8 +196,10 @@ export function validateSettings(input, base = defaultSettings()) {
     else if (list.some((s) => s.length > 40)) errors.push(`${label}每个不超过 40 个字`);
     else out[k] = list;
   }
+  const defaulted = new Set();
   for (const [k, [min, max, label]] of Object.entries(NUMS)) {
     if (input[k] === undefined) continue;
+    if (blank(input[k])) { out[k] = dflt(k); defaulted.add(k); continue; }
     const n = Number(input[k]);
     if (!Number.isInteger(n) || n < min || n > max) errors.push(`${label}要是 ${min}–${max} 之间的整数`);
     else out[k] = n;
@@ -207,7 +214,8 @@ export function validateSettings(input, base = defaultSettings()) {
       else errors.push('频率只能是每天或每周');
     }
     if (s.time !== undefined) {
-      if (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(s.time))) sch.time = String(s.time);
+      if (blank(s.time)) { if (sch.enabled) errors.push('打开了定时就要填时间'); }   // 定时关着：留空就保留原来的时间
+      else if (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(s.time))) sch.time = String(s.time);
       else errors.push('时间要写成 HH:MM');
     }
     if (s.weekday !== undefined) {
@@ -227,6 +235,8 @@ export function validateSettings(input, base = defaultSettings()) {
     if (t.errors.length) errors.push(...t.errors.slice(0, 5));
     else out.brandPlaces = t.rows;
   }
+  // 第一轮回溯天数留空时按默认值，但不超过最长回溯天数（免得留空还报错）
+  if (defaulted.has('firstRunDays')) out.firstRunDays = Math.min(out.firstRunDays, out.maxLookbackDays);
   if (out.firstRunDays > out.maxLookbackDays) errors.push('首次回溯天数不能大于最长回溯天数');
   return { settings: out, errors };
 }
